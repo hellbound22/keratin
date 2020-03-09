@@ -1,0 +1,6 @@
+project = ".default."
+
+[core]
+collection = ".default."
+primary_key = "id"
+
