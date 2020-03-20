@@ -11,9 +11,9 @@ pub struct Config {
     project: String,
     coll_name: String,
     config_file_path: String,
-    primary_key: String,
-    mapped_keys_path: Option<String>,
-    data_path: Option<String>,
+    primary_key: String, // Default: Collection name hash prefix + Hashed data
+    //mapped_keys_path: Option<String>,
+    data_path: String,
 }
 
 impl Config {
@@ -48,15 +48,38 @@ impl Config {
         }
         .to_string();
 
+        let data_path = match parsed["core"]["data_path"].as_str().unwrap() {
+            DEFAULT_KEYWORD => format!(
+                "{}/data",
+                Path::new(&config_file_path)
+                    .parent()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+            ),
+            x => x.to_string(),
+        };
+
         // TODO: Configure the last arguments
         Config {
             project,
             coll_name,
             config_file_path,
             primary_key,
-            mapped_keys_path: None,
-            data_path: None,
+            //mapped_keys_path: None,
+            data_path,
         }
+    }
+
+    pub fn coll_prefix(&self) -> String {
+        format!("{:x}", md5::compute(self.coll_name.clone()))
+            .get(0..6)
+            .unwrap()
+            .to_string()
+    }
+
+    pub fn data_path(&self) -> &str {
+        &self.data_path
     }
 
     pub fn coll_name(&self) -> &str {
