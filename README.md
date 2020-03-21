@@ -14,6 +14,9 @@ fn main() {
 	// Every insert auto persists the data. No need to "confirm changes" or manage the state
 	db.insert(r#"{"data": "not so important data here"}"#);
 
+	// Keratin works as a Key-Value store
+	let doc = db.get("key").unwrap();
+
 	// Both query and delete use regex
 	db.delete("regex string here");
 
@@ -24,6 +27,7 @@ fn main() {
 
 		db.delete_by_key(doc.key());
 	}
+
 }
 
 ```
@@ -37,8 +41,6 @@ project folder ---src/
 				|-target/
 				|
 				|-db/---------keratin.toml (config)
-							|
-							|-map.bson (mapped keys)
 							|
 							|-data/ ------- BSON documents
 ```

@@ -1,4 +1,4 @@
-use bson::Document;
+use bson::{decode_document, encode_document, Bson, Document};
 
 use std::collections::HashMap;
 use std::fs::{self, DirBuilder, DirEntry, File};
@@ -6,9 +6,11 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
-mod config;
+pub mod config;
+pub mod errors;
 
 use config::*;
+use errors::*;
 
 /// Represents a collection of documents.
 ///
@@ -22,29 +24,52 @@ pub struct Collection {
 }
 
 impl Collection {
-    fn gen_key(&self, pk: &str) -> String {
+    fn _gen_key(&self, pk: &str) -> String {
         let digest = md5::compute(pk);
 
         format!("{}{:x}", self.config.coll_prefix(), digest)
     }
 
-    pub fn exists(&mut self, pk: &str) -> bool {
-        self.cache_entries();
-        match self.cached_docs.get(pk) {
-            Some(_) => return true,
-            None => return false,
-        };
+    pub fn get(&mut self, k: &str) -> Option<String> {
+        let key = self._gen_key(k);
+        self._find(&key)
     }
 
-    pub fn insert(&mut self, entry: &str) {
+    fn _find(&mut self, pk: &str) -> Option<String> {
+        self.cache_entries();
+        match self.cached_docs.get(pk) {
+            Some(x) => {
+                let entry = x.clone();
+                let doc = decode_document(&mut entry.as_bytes()).expect("Could Not Decode");
+
+                return Some(doc.get("data").unwrap().as_str().unwrap().to_string());
+            }
+            None => return None,
+        }
+    }
+
+    pub fn insert(&mut self, entry: &str) -> Result<(), Errors> {
         // Generate primary key
-        let key = self.gen_key(entry);
+        let key = self._gen_key(entry);
 
         // Check if entry with key already exists in cache
+        match self._find(&key) {
+            Some(_) => Err(Errors::AlreadyExists),
+            None => {
+                // Write the entry to a document and save it
+                let mut doc = Document::new();
+                doc.insert("data".to_owned(), Bson::String(entry.to_owned()));
 
-        // Check if entry with key already exists in non-volitile storage
+                let mut buf = Vec::new();
+                encode_document(&mut buf, &doc).unwrap();
 
-        // Write the entry to a document and save it
+                let mut file =
+                    File::create(format!("{}/{}.bson", self.config.data_path(), key)).unwrap();
+                file.write_all(&buf).unwrap();
+
+                Ok(())
+            }
+        }
     }
 
     pub fn delete(query: &str) {}
@@ -103,6 +128,7 @@ impl Collection {
         }
     }
 
+    // TODO: Error handle this
     pub fn cache_entries(&mut self) {
         for entry in fs::read_dir(self.config.data_path()).unwrap() {
             let fp = entry.unwrap().path();
@@ -110,7 +136,7 @@ impl Collection {
             let mut s = String::new();
             f.read_to_string(&mut s).unwrap();
 
-            let key = Path::new(&fp).file_name();
+            let key = Path::new(&fp).file_stem();
 
             self.cached_docs
                 .insert(key.unwrap().to_str().unwrap().to_string(), s);

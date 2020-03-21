@@ -1,12 +1,21 @@
+use keratin::errors::Errors;
 use keratin::*;
 
 #[test]
-fn show_collection() {
+#[should_panic]
+fn failed_insert() {
     let path = "/home/rodrigo/Software/Rust/keratin/db/keratin.toml";
 
     let mut coll = Collection::configure(path);
 
-    dbg!(&coll);
+    coll.insert("teste").unwrap();
+}
 
-    assert!(coll.exists("teste"));
+#[test]
+fn get() {
+    let path = "/home/rodrigo/Software/Rust/keratin/db/keratin.toml";
+
+    let mut coll = Collection::configure(path);
+
+    assert!(coll.get("teste").is_some())
 }
