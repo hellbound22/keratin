@@ -1,9 +1,9 @@
 use bson::{decode_document, encode_document, Bson, Document};
 
 use std::collections::HashMap;
-use std::fs::{self, DirBuilder, DirEntry, File};
-use std::io;
+use std::fs::{self, DirBuilder, File};
 use std::io::prelude::*;
+use std::io::Cursor;
 use std::path::Path;
 
 pub mod config;
@@ -11,6 +11,24 @@ pub mod errors;
 
 use config::*;
 use errors::*;
+
+/// Represents an Entry in the database.
+/// 
+/// Contains the key and the following content corresponding to that key.
+#[derive(Clone, Debug)]
+pub struct Entry {
+    pub key: String,
+    pub content: String,
+}
+impl Entry {
+    pub fn as_bytes(&self) -> &[u8] {
+        self.content.as_bytes()
+    }
+
+    pub fn inner(&self) -> &str {
+        &self.content
+    }
+}
 
 /// Represents a collection of documents.
 ///
@@ -20,7 +38,7 @@ pub struct Collection {
     main_path: String,
     config: Config,
     //mapped_keys: HashMap<String, String>, // Pair (key, path to document)
-    cached_docs: HashMap<String, String>, // Pair (key, entry)
+    cached_docs: HashMap<String, Entry>, // Pair (key, entry)
 }
 
 impl Collection {
@@ -30,27 +48,25 @@ impl Collection {
         format!("{}{:x}", self.config.coll_prefix(), digest)
     }
 
-    pub fn get(&mut self, k: &str) -> Option<String> {
+    /// Returns an entry of the database given the respective key, or ```None``` if the key
+    /// corresponds to no known entries
+    pub fn get(&mut self, k: &str) -> Option<&Entry> {
         let key = self._gen_key(k);
         self._find(&key)
     }
 
-    fn _find(&mut self, pk: &str) -> Option<String> {
+    fn _find(&mut self, pk: &str) -> Option<&Entry> {
         self.cache_entries();
-        match self.cached_docs.get(pk) {
-            Some(x) => {
-                let entry = x.clone();
-                let doc = decode_document(&mut entry.as_bytes()).expect("Could Not Decode");
-
-                return Some(doc.get("data").unwrap().as_str().unwrap().to_string());
-            }
-            None => return None,
-        }
+        self.cached_docs.get(pk)
     }
 
-    pub fn insert(&mut self, entry: &str) -> Result<(), Errors> {
+    /// Insert an entry into the database given an ```Entry```
+    ///
+    /// # Note
+    /// This does not cache the entry automaticaly 
+    pub fn insert(&mut self, key: &str, entry: &str) -> Result<(), Errors> {
         // Generate primary key
-        let key = self._gen_key(entry);
+        let key = self._gen_key(key);
 
         // Check if entry with key already exists in cache
         match self._find(&key) {
@@ -72,7 +88,19 @@ impl Collection {
         }
     }
 
-    pub fn delete(query: &str) {}
+    /// Delete a entry in the database given the key.
+    /// 
+    /// This deletes from both the cache and non-volatile storage.
+    /// 
+    /// # Note
+    /// In the future this will use a query string to find what multiple elements to delete
+    ///
+    /// # Return
+    /// Returns an Error ```EntryNotFound``` if the key does not match any entry
+    pub fn delete(&mut self, query: &str) -> Result<(), Errors>{
+        let k = self._gen_key(query);
+        return self._remove_entry(&k)
+    }
 
     pub fn modify(query: &str) {}
     /// A function to create a new Keratin db from scratch for a fast setup.
@@ -104,13 +132,35 @@ impl Collection {
     ///
     /// USE ONLY ABSOLUTE PATHS!!!
     ///
+    /// Use of the ```None``` Option is unstable
+    ///
     /// # Errors
     ///
     /// This returns an error if the config file is not found OR if the folder doesn't have the
     /// right permitions
     // TODO: Error handle this
-    pub fn configure(path: &str) -> Collection {
-        let path = Path::new(path);
+    pub fn configure(path: Option<&str>) -> Collection {
+        let path = match path {
+            Some(x) => Path::new(x),
+            None => {
+                 DirBuilder::new()
+                    .recursive(true)
+                    .create("db")
+                    .unwrap();
+                let mut f = File::create("db/keratin.toml").unwrap();
+
+                f.write_all(r#"project = ".default."
+                    [core]
+                    collection = ".default."
+                    primary_key = "id"
+                    data_path = ".default."
+                    "#.as_bytes()).unwrap();
+                
+                Path::new("db/keratin.toml")
+
+               
+            }
+        };
 
         let config = Config::new_from_path(path);
         let main_path = String::from(path.parent().unwrap().to_str().unwrap());
@@ -129,6 +179,22 @@ impl Collection {
     }
 
     // TODO: Error handle this
+    fn _remove_entry(&mut self, given_key: &str) -> Result<(), Errors>{
+        for entry in fs::read_dir(self.config.data_path()).unwrap() {
+            let fp = entry.unwrap().path();
+            let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
+
+            if key == given_key {
+                fs::remove_file(fp).unwrap();
+                self.cached_docs.remove(given_key);
+
+                return Ok(())
+            }
+        }
+        Err(Errors::EntryNotFound)
+    }
+
+    // TODO: Error handle this
     pub fn cache_entries(&mut self) {
         for entry in fs::read_dir(self.config.data_path()).unwrap() {
             let fp = entry.unwrap().path();
@@ -136,10 +202,18 @@ impl Collection {
             let mut s = String::new();
             f.read_to_string(&mut s).unwrap();
 
-            let key = Path::new(&fp).file_stem();
+            let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
 
-            self.cached_docs
-                .insert(key.unwrap().to_str().unwrap().to_string(), s);
+            let doc = decode_document(&mut Cursor::new(&s)).expect("Could Not Decode");
+            let upd = doc.get("data").unwrap().as_str().unwrap().to_string();
+
+            let e = Entry {
+                key: key.clone(),
+                content: upd.clone()
+            };
+
+
+            self.cached_docs.insert(key, e);
         }
     }
 }
