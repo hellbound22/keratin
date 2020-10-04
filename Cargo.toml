@@ -1,8 +1,10 @@
 [package]
 name = "keratin"
+description = "A quick setup/quick development, embedded, modular database"
 version = "0.1.0"
-authors = ["Rodrigo <rodrigomauricio@protonmail.com>"]
+authors = ["Rodrigo Mauricio <rodrigomauricio@protonmail.com>"]
 edition = "2018"
+license = "GPL-3.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
