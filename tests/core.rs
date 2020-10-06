@@ -3,7 +3,7 @@ use rand::prelude::*;
 use keratin::errors::Errors;
 use keratin::*;
 
-const PATH: &str  = "/home/rodrigo/Software/Rust/keratin/db/keratin.toml";
+const PATH: &str  = "db/keratin.toml";
 
 #[test]
 #[should_panic]
