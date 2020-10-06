@@ -4,13 +4,20 @@ use std::collections::HashMap;
 use std::fs::{self, DirBuilder, File};
 use std::io::prelude::*;
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub mod config;
 pub mod errors;
 
 use config::*;
 use errors::*;
+
+const DEFAULT_CONFIG: &'static str = r#"project = ".default."
+                    [core]
+                    collection = ".default."
+                    primary_key = "id"
+                    data_path = ".default."
+                    "#;
 
 /// Represents an Entry in the database.
 /// 
@@ -117,8 +124,40 @@ impl Collection {
     /// This fuction uses the enviroment variable ```CARGO_MANIFEST_DIR```, so this will only work
     /// when running your project using ```cargo```, else it will panic.
     /// If you're using planning in using Keratin in production use ```configure()``` instead
-    pub fn new(truncate: bool) -> Collection {
-        unimplemented!()
+    pub fn new(self, truncate: bool) -> Result<Collection, Errors> {
+        // TODO: Actually remove all files on db/data
+        if truncate {
+            let path = generate_default_config_structure();
+
+            let config = Config::new_from_path(&path);
+            let main_path = String::from(path.parent().unwrap().to_str().unwrap());
+
+            DirBuilder::new()
+                .recursive(true)
+                .create(config.data_path())
+                .unwrap();
+
+            return Ok(Collection {
+                main_path,
+                config,
+                //mapped_keys: HashMap::new(),
+                cached_docs: HashMap::new(),
+            })
+        } else {
+            let path = Path::new("db/keratin.toml");
+            let config = Config::new_from_path(&path);
+            let main_path = String::from(path.parent().unwrap().to_str().unwrap());
+
+       
+            return Ok(Collection {
+                main_path,
+                config,
+                //mapped_keys: HashMap::new(),
+                cached_docs: HashMap::new(),
+            })
+            
+        }
+        Err(Errors::DbConfigurationError)
     }
 
     /// A function to initialize the collection using the path of a configuration file
@@ -139,30 +178,15 @@ impl Collection {
     /// This returns an error if the config file is not found OR if the folder doesn't have the
     /// right permitions
     // TODO: Error handle this
-    pub fn configure(path: Option<&str>) -> Collection {
+    pub fn configure(self, path: Option<&str>) -> Collection {
         let path = match path {
-            Some(x) => Path::new(x),
+            Some(x) => PathBuf::from(x),
             None => {
-                 DirBuilder::new()
-                    .recursive(true)
-                    .create("db")
-                    .unwrap();
-                let mut f = File::create("db/keratin.toml").unwrap();
-
-                f.write_all(r#"project = ".default."
-                    [core]
-                    collection = ".default."
-                    primary_key = "id"
-                    data_path = ".default."
-                    "#.as_bytes()).unwrap();
-                
-                Path::new("db/keratin.toml")
-
-               
+                generate_default_config_structure()
             }
         };
 
-        let config = Config::new_from_path(path);
+        let config = Config::new_from_path(&path);
         let main_path = String::from(path.parent().unwrap().to_str().unwrap());
 
         DirBuilder::new()
@@ -216,4 +240,17 @@ impl Collection {
             self.cached_docs.insert(key, e);
         }
     }
+}
+
+
+fn generate_default_config_structure() -> PathBuf {
+    DirBuilder::new()
+        .recursive(true)
+        .create("db")
+        .unwrap();
+    let mut f = File::create("db/keratin.toml").unwrap();
+
+    f.write_all(DEFAULT_CONFIG.as_bytes()).unwrap();
+    
+    Path::new("db/keratin.toml").to_owned()
 }
