@@ -1,4 +1,4 @@
-use rand::prelude::*;
+use rand::prelude::Rng;
 
 use keratin::errors::Errors;
 use keratin::*;

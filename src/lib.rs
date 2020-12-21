@@ -178,7 +178,7 @@ impl Collection {
     /// This returns an error if the config file is not found OR if the folder doesn't have the
     /// right permitions
     // TODO: Error handle this
-    pub fn configure(self, path: Option<&str>) -> Collection {
+    pub fn configure(path: Option<&str>) -> Collection {
         let path = match path {
             Some(x) => PathBuf::from(x),
             None => {
