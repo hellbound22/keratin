@@ -21,6 +21,23 @@ fn test_fast_setup() {
 }
 
 #[test]
+fn modify() {
+    let mut coll = Collection::configure(Some(PATH));
+
+    match coll.delete("modifytest") {
+        Ok(_) => {},
+        Err(_) => {}
+    }
+    
+
+    coll.insert("modifytest", "ass").unwrap();
+    assert_eq!(&coll.get("modifytest").unwrap().inner().to_string(), "ass");
+
+    coll.modify("modifytest", "boobs").unwrap();
+    assert_eq!(&coll.get("modifytest").unwrap().inner().to_string(), "boobs");
+}
+
+#[test]
 fn get() {
     let mut coll = Collection::configure(Some(PATH));
 

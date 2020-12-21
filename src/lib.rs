@@ -35,6 +35,10 @@ impl Entry {
     pub fn inner(&self) -> &str {
         &self.content
     }
+
+    pub fn _inner_mut(&mut self) -> &mut str {
+        &mut self.content
+    }
 }
 
 /// Represents a collection of documents.
@@ -67,29 +71,32 @@ impl Collection {
         self.cached_docs.get(pk)
     }
 
+    fn _write_record(&self, entry: &str, key: &str) {
+        let mut doc = Document::new();
+        doc.insert("data".to_owned(), Bson::String(entry.to_owned()));
+
+        let mut buf = Vec::new();
+        encode_document(&mut buf, &doc).unwrap();
+
+        let mut file =
+            File::create(format!("{}/{}.bson", self.config.data_path(), key)).unwrap();
+        file.write_all(&buf).unwrap();
+    }
+
     /// Insert an entry into the database given an ```Entry```
     ///
     /// # Note
     /// This does not cache the entry automaticaly 
     pub fn insert(&mut self, key: &str, entry: &str) -> Result<(), Errors> {
         // Generate primary key
-        let key = self._gen_key(key);
+        let k = self._gen_key(key);
 
         // Check if entry with key already exists in cache
-        match self._find(&key) {
+        match self._find(&k) {
             Some(_) => Err(Errors::AlreadyExists),
             None => {
                 // Write the entry to a document and save it
-                let mut doc = Document::new();
-                doc.insert("data".to_owned(), Bson::String(entry.to_owned()));
-
-                let mut buf = Vec::new();
-                encode_document(&mut buf, &doc).unwrap();
-
-                let mut file =
-                    File::create(format!("{}/{}.bson", self.config.data_path(), key)).unwrap();
-                file.write_all(&buf).unwrap();
-
+                self._write_record(entry, &k);
                 Ok(())
             }
         }
@@ -109,7 +116,20 @@ impl Collection {
         return self._remove_entry(&k)
     }
 
-    pub fn modify(query: &str) {}
+    pub fn modify(&mut self, key: &str, new_entry: &str) -> Result<(), Errors> {
+        let k = self._gen_key(key);
+
+        match self._find(&k) {
+            None => Err(Errors::EntryNotFound),
+            Some(x) => {
+                self.delete(key).unwrap();
+                self.insert(key, new_entry).unwrap();
+                
+                Ok(())
+            }
+        }
+
+    }
     /// A function to create a new Keratin db from scratch for a fast setup.
     ///
     /// The config file keratin.toml is created with the default options. If it already exists, the
