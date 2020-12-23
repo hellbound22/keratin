@@ -242,13 +242,12 @@ impl Collection {
     pub fn cache_entries(&mut self) {
         for entry in fs::read_dir(self.config.data_path()).unwrap() {
             let fp = entry.unwrap().path();
-            let mut f = File::open(fp.clone()).unwrap();
-            let mut s = String::new();
-            f.read_to_string(&mut s).unwrap();
+            //let mut f = File::open(fp.clone()).unwrap();
+            let s = String::from_utf8_lossy(&fs::read(fp.clone()).unwrap()).into_owned();
 
             let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
 
-            let doc = decode_document(&mut Cursor::new(&s)).expect("Could Not Decode");
+            let doc = decode_document(&mut Cursor::new(s)).expect("Could Not Decode");
             let upd = doc.get("data").unwrap().as_str().unwrap().to_string();
 
             let e = Entry {
