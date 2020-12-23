@@ -1,10 +1,12 @@
-use bson::{decode_document, encode_document, Bson, Document};
+use bson::{Bson, Document};
 
 use std::collections::HashMap;
 use std::fs::{self, DirBuilder, File};
 use std::io::prelude::*;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
+
+use std::io::{BufWriter, Write};
+
 
 pub mod config;
 pub mod errors;
@@ -75,12 +77,12 @@ impl Collection {
         let mut doc = Document::new();
         doc.insert("data".to_owned(), Bson::String(entry.to_owned()));
 
-        let mut buf = Vec::new();
-        encode_document(&mut buf, &doc).unwrap();
+        let mut s = Vec::new();
+        doc.to_writer(&mut s).unwrap();
 
         let mut file =
             File::create(format!("{}/{}.bson", self.config.data_path(), key)).unwrap();
-        file.write_all(&buf).unwrap();
+        file.write_all(&s).unwrap();
     }
 
     /// Insert an entry into the database given an ```Entry```
@@ -247,7 +249,7 @@ impl Collection {
 
             let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
 
-            let doc = decode_document(&mut Cursor::new(s)).expect("Could Not Decode");
+            let doc = Document::from_reader(&mut s.as_bytes()).expect("Could Not Decode");
             let upd = doc.get("data").unwrap().as_str().unwrap().to_string();
 
             let e = Entry {
