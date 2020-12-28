@@ -246,13 +246,9 @@ impl Collection {
             let fp = entry.unwrap().path();
             let mut f = File::open(fp.clone()).unwrap();
 
-            let mut buf = vec![];
-            f.read_to_end(&mut buf).unwrap();
-            let s = String::from_utf8_lossy (&buf);
-
             let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
 
-            let doc = Document::from_reader(&mut s.as_bytes()).expect("Could Not Decode"); // here
+            let doc = Document::from_reader(&mut f).expect("Could Not Decode"); // here
             let upd = doc.get("data").unwrap().as_str().unwrap().to_string();
 
             let e = Entry {
