@@ -2,7 +2,7 @@
 name = "keratin"
 description = "A quick setup/quick development, embedded, modular database"
 repository = "https://github.com/hellbound22/keratin"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Rodrigo Mauricio <rodrigomauricio@protonmail.com>"]
 edition = "2018"
 license = "GPL-3.0"

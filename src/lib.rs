@@ -6,7 +6,7 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use std::io::{BufWriter, Write};
-
+use std::io::SeekFrom;
 
 pub mod config;
 pub mod errors;
@@ -244,12 +244,15 @@ impl Collection {
     pub fn cache_entries(&mut self) {
         for entry in fs::read_dir(self.config.data_path()).unwrap() {
             let fp = entry.unwrap().path();
-            //let mut f = File::open(fp.clone()).unwrap();
-            let s = String::from_utf8_lossy(&fs::read(fp.clone()).unwrap()).into_owned();
+            let mut f = File::open(fp.clone()).unwrap();
+            f.seek(SeekFrom::Start(0)).unwrap();
+            //let s = String::from_utf8_lossy(&fs::read(fp.clone()).unwrap()).into_owned();
+            let mut s = String::new();
+            f.read_to_string(&mut s).unwrap();
 
             let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
 
-            let doc = Document::from_reader(&mut s.as_bytes()).expect("Could Not Decode");
+            let doc = Document::from_reader(&mut s.as_bytes()).expect("Could Not Decode"); // here
             let upd = doc.get("data").unwrap().as_str().unwrap().to_string();
 
             let e = Entry {
