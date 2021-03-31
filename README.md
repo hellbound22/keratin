@@ -2,37 +2,48 @@
 ### A quick setup/quick development, embedded, modular database
 
 Keratin is designed from the start to be simple but expansive. 
+Works with any serializable and deserializable struct.
+
+In the future you'll be able to choose how to structure Keratin: how you'll interact with it, what format of persistant data you'll use, attach your own custom modules for data treatment...
+
+WIP!!! Probably don't use in production
 
 ### Exemple
 ```rust
 use keratin::*;
 
 fn main() {
-	// Create the collection
-	let mut db = Collection::new();
+    // Create the collection (using None as the parameter defaults to a directory inside the project)
+    let mut coll: Collection<String> = Collection::configure(None);
 
-	// Every insert auto persists the data. No need to "confirm changes" or manage the state
-	db.insert(r#"{"data": "not so important data here"}"#);
+    // Generate your data
+    let mut rng = rand::thread_rng();
+    let nmr = rng.gen_range(0, 100).to_string();
 
-	// Keratin works as a Key-Value store
-	let doc = db.get("key").unwrap();
-
-	// Both query and delete use regex
-	db.delete("regex string here");
-
-	for doc in db.query("regex string here") {
-		// inner() returns a reference to the value inside the result of query()
-		dbg!(doc.inner());
-
-
-		db.delete_by_key(doc.key());
-	}
-
+    // Insert the data into the collection
+    let result = coll.insert("random_key", nmr.clone());
+    assert!(result.is_ok());
+    
+    // Get the data from the collection
+    let retrieved_data = coll.get("random_key").unwrap().inner();
+    assert_eq!(retrieved_data, &nmr);
+    
+    // Delete the entry
+    coll.delete(&key);
+    
+    // Modify the data entry
+    coll.modify("random_key", "modifying this entry".to_string()).unwrap();
+    
+    let retrieved_data = coll.get("random_key").unwrap().inner();
+    assert_eq!(retrieved_data, "modifying this entry");
 }
 
 ```
 
-#### Directory Layout
+#### TODO:
+- [ ] Modularize the library
+
+#### Default project directory Layout
 ```
 project folder ---src/
 				|
