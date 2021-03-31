@@ -1,6 +1,4 @@
 use rand::prelude::Rng;
-
-use keratin::errors::Errors;
 use keratin::*;
 
 const PATH: &str  = "db/keratin.toml";
@@ -8,21 +6,19 @@ const PATH: &str  = "db/keratin.toml";
 #[test]
 #[should_panic]
 fn failed_insert() {
-    let mut coll = Collection::configure(Some(PATH));
+    let mut coll: Collection<String> = Collection::configure(Some(PATH));
 
-    coll.insert("key", "teste").unwrap();
+    coll.insert("key", "teste".to_string()).unwrap();
 }
 
 #[test]
 fn test_fast_setup() {
-    let mut coll = Collection::configure(None);
-
-    assert!(coll.get("key").is_some())
+    let _coll: Collection<String> = Collection::configure(None);
 }
 
 #[test]
 fn modify() {
-    let mut coll = Collection::configure(Some(PATH));
+    let mut coll: Collection<String> = Collection::configure(Some(PATH));
 
     match coll.delete("modifytest") {
         Ok(_) => {},
@@ -30,30 +26,24 @@ fn modify() {
     }
     
 
-    coll.insert("modifytest", "ass").unwrap();
-    assert_eq!(&coll.get("modifytest").unwrap().inner().to_string(), "ass");
+    coll.insert("modifytest", "ass".to_string()).unwrap();
+    assert_eq!(coll.get("modifytest").unwrap().inner(), "ass");
 
-    coll.modify("modifytest", "boobs").unwrap();
-    assert_eq!(&coll.get("modifytest").unwrap().inner().to_string(), "boobs");
-}
-
-#[test]
-fn get() {
-    let mut coll = Collection::configure(Some(PATH));
-
-    assert!(coll.get("key").is_some())
+    coll.modify("modifytest", "boobs".to_string()).unwrap();
+    assert_eq!(coll.get("modifytest").unwrap().inner(), "boobs");
 }
 
 #[test]
 fn random_insert_and_delete() {
-    let mut coll = Collection::configure(Some(PATH));
+    let mut coll: Collection<String> = Collection::configure(Some(PATH));
 
-    let key = "randon_key";
+    let key = "random_key";
 
     let mut rng = rand::thread_rng();
     let nmr = rng.gen_range(0, 100).to_string();
+    let result = coll.insert(key, nmr.clone());
 
-    assert!(coll.insert(key, &nmr).is_ok());
-    assert_eq!(&coll.get(key).unwrap().inner().to_string(), &nmr);
+    assert!(result.is_ok());
+    assert_eq!(coll.get(key).unwrap().inner(), &nmr);
     assert!(coll.delete(&key).is_ok());
 }

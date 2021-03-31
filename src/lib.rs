@@ -1,12 +1,12 @@
-use bson::{Bson, Document};
-
+use bson::{Document};
+use bson::{to_bson, from_bson};
 use std::collections::HashMap;
 use std::fs::{self, DirBuilder, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use std::io::{BufWriter, Write};
-use std::io::SeekFrom;
+use serde::ser::Serialize;
+use serde::de::Deserialize;
 
 pub mod config;
 pub mod errors;
@@ -25,20 +25,21 @@ const DEFAULT_CONFIG: &'static str = r#"project = ".default."
 /// 
 /// Contains the key and the following content corresponding to that key.
 #[derive(Clone, Debug)]
-pub struct Entry {
+pub struct Entry<T> {
     pub key: String,
-    pub content: String,
+    pub content: T,
 }
-impl Entry {
-    pub fn as_bytes(&self) -> &[u8] {
-        self.content.as_bytes()
-    }
+impl<'a, T: Serialize> Entry<T> 
+where T: Serialize {
+    //pub fn as_bytes(&self) -> &[u8] {
+    //    self.content.as_bytes()
+    //}
 
-    pub fn inner(&self) -> &str {
+    pub fn inner(&self) -> &T {
         &self.content
     }
 
-    pub fn _inner_mut(&mut self) -> &mut str {
+    pub fn _inner_mut(&mut self) -> &mut T {
         &mut self.content
     }
 }
@@ -47,14 +48,14 @@ impl Entry {
 ///
 /// It is the main API for data managment for Keratin.
 #[derive(Clone, Debug)]
-pub struct Collection {
+pub struct Collection<T> {
     main_path: String,
     config: Config,
     //mapped_keys: HashMap<String, String>, // Pair (key, path to document)
-    cached_docs: HashMap<String, Entry>, // Pair (key, entry)
+    cached_docs: HashMap<String, Entry<T>>, // Pair (key, entry)
 }
 
-impl Collection {
+impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
     fn _gen_key(&self, pk: &str) -> String {
         let digest = md5::compute(pk);
 
@@ -63,19 +64,19 @@ impl Collection {
 
     /// Returns an entry of the database given the respective key, or ```None``` if the key
     /// corresponds to no known entries
-    pub fn get(&mut self, k: &str) -> Option<&Entry> {
+    pub fn get(&mut self, k: &str) -> Option<&Entry<T>> {
         let key = self._gen_key(k);
         self._find(&key)
     }
 
-    fn _find(&mut self, pk: &str) -> Option<&Entry> {
+    fn _find(&mut self, pk: &str) -> Option<&Entry<T>> {
         self.cache_entries();
         self.cached_docs.get(pk)
     }
 
-    fn _write_record(&self, entry: &str, key: &str) {
+    fn _write_record(&self, entry: T, key: &str) {
         let mut doc = Document::new();
-        doc.insert("data".to_owned(), Bson::String(entry.to_owned()));
+        doc.insert("data".to_owned(), to_bson(&entry).unwrap());
 
         let mut s = Vec::new();
         doc.to_writer(&mut s).unwrap();
@@ -89,7 +90,7 @@ impl Collection {
     ///
     /// # Note
     /// This does not cache the entry automaticaly 
-    pub fn insert(&mut self, key: &str, entry: &str) -> Result<(), Errors> {
+    pub fn insert(&mut self, key: &str, entry: T) -> Result<(), Errors> {
         // Generate primary key
         let k = self._gen_key(key);
 
@@ -118,12 +119,12 @@ impl Collection {
         return self._remove_entry(&k)
     }
 
-    pub fn modify(&mut self, key: &str, new_entry: &str) -> Result<(), Errors> {
+    pub fn modify(&mut self, key: &str, new_entry: T) -> Result<(), Errors> {
         let k = self._gen_key(key);
 
         match self._find(&k) {
             None => Err(Errors::EntryNotFound),
-            Some(x) => {
+            Some(_) => {
                 self.delete(key).unwrap();
                 self.insert(key, new_entry).unwrap();
                 
@@ -146,7 +147,7 @@ impl Collection {
     /// This fuction uses the enviroment variable ```CARGO_MANIFEST_DIR```, so this will only work
     /// when running your project using ```cargo```, else it will panic.
     /// If you're using planning in using Keratin in production use ```configure()``` instead
-    pub fn new(self, truncate: bool) -> Result<Collection, Errors> {
+    pub fn new(self, truncate: bool) -> Result<Collection<T>, Errors> {
         // TODO: Actually remove all files on db/data
         if truncate {
             let path = generate_default_config_structure();
@@ -179,7 +180,7 @@ impl Collection {
             })
             
         }
-        Err(Errors::DbConfigurationError)
+        //Err(Errors::DbConfigurationError)
     }
 
     /// A function to initialize the collection using the path of a configuration file
@@ -200,7 +201,7 @@ impl Collection {
     /// This returns an error if the config file is not found OR if the folder doesn't have the
     /// right permitions
     // TODO: Error handle this
-    pub fn configure(path: Option<&str>) -> Collection {
+    pub fn configure(path: Option<&str>) -> Collection<T> {
         let path = match path {
             Some(x) => PathBuf::from(x),
             None => {
@@ -248,12 +249,15 @@ impl Collection {
 
             let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
 
-            let doc = Document::from_reader(&mut f).expect("Could Not Decode"); // here
-            let upd = doc.get("data").unwrap().as_str().unwrap().to_string();
+            let doc = Document::from_reader(&mut f).expect("Could Not Decode");
+            
+            let upd = doc.get("data").unwrap().clone(); 
+            let upd: T = from_bson(upd).unwrap();
+
 
             let e = Entry {
                 key: key.clone(),
-                content: upd.clone()
+                content: upd
             };
 
 
