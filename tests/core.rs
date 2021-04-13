@@ -35,7 +35,7 @@ fn modify() {
 
 #[test]
 fn random_insert_and_delete() {
-    let mut coll: Collection<String> = Collection::configure(Some(PATH));
+    let mut coll: Collection<String> = Collection::configure(None);
 
     let key = "random_key";
 
@@ -45,5 +45,5 @@ fn random_insert_and_delete() {
 
     assert!(result.is_ok());
     assert_eq!(coll.get(key).unwrap().inner(), &nmr);
-    assert!(coll.delete(&key).is_ok());
+    assert!(coll.delete(key).is_ok());
 }

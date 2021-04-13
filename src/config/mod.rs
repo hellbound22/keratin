@@ -12,7 +12,6 @@ pub struct Config {
     coll_name: String,
     config_file_path: String,
     primary_key: String, // Default: Collection name hash prefix + Hashed data
-    //mapped_keys_path: Option<String>,
     data_path: String,
 }
 

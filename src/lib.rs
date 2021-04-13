@@ -1,18 +1,19 @@
-use bson::{Document};
-use bson::{to_bson, from_bson};
 use std::collections::HashMap;
-use std::fs::{self, DirBuilder, File};
+use std::fs::{DirBuilder, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use serde::ser::Serialize;
 use serde::de::Deserialize;
+use serde;
 
 pub mod config;
 pub mod errors;
+pub mod storage;
 
 use config::*;
 use errors::*;
+use storage::*;
 
 const DEFAULT_CONFIG: &'static str = r#"project = ".default."
                     [core]
@@ -29,8 +30,7 @@ pub struct Entry<T> {
     pub key: String,
     pub content: T,
 }
-impl<'a, T: Serialize> Entry<T> 
-where T: Serialize {
+impl<T> Entry<T> {
     //pub fn as_bytes(&self) -> &[u8] {
     //    self.content.as_bytes()
     //}
@@ -47,15 +47,15 @@ where T: Serialize {
 /// Represents a collection of documents.
 ///
 /// It is the main API for data managment for Keratin.
-#[derive(Clone, Debug)]
 pub struct Collection<T> {
-    main_path: String,
+    //main_path: String,
     config: Config,
-    //mapped_keys: HashMap<String, String>, // Pair (key, path to document)
     cached_docs: HashMap<String, Entry<T>>, // Pair (key, entry)
+    storage_engine: Box<dyn StorageEngine<T>>
+
 }
 
-impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
+impl<T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
     fn _gen_key(&self, pk: &str) -> String {
         let digest = md5::compute(pk);
 
@@ -70,20 +70,8 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
     }
 
     fn _find(&mut self, pk: &str) -> Option<&Entry<T>> {
-        self.cache_entries();
+        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path());
         self.cached_docs.get(pk)
-    }
-
-    fn _write_record(&self, entry: T, key: &str) {
-        let mut doc = Document::new();
-        doc.insert("data".to_owned(), to_bson(&entry).unwrap());
-
-        let mut s = Vec::new();
-        doc.to_writer(&mut s).unwrap();
-
-        let mut file =
-            File::create(format!("{}/{}.bson", self.config.data_path(), key)).unwrap();
-        file.write_all(&s).unwrap();
     }
 
     /// Insert an entry into the database given an ```Entry```
@@ -99,7 +87,8 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
             Some(_) => Err(Errors::AlreadyExists),
             None => {
                 // Write the entry to a document and save it
-                self._write_record(entry, &k);
+                self.storage_engine.write_record(self.config.data_path(), entry, &k);
+                self.cached_docs = self.storage_engine.cache_entries(self.config.data_path());
                 Ok(())
             }
         }
@@ -116,7 +105,11 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
     /// Returns an Error ```EntryNotFound``` if the key does not match any entry
     pub fn delete(&mut self, query: &str) -> Result<(), Errors>{
         let k = self._gen_key(query);
-        return self._remove_entry(&k)
+        
+        let ret = self.storage_engine.remove_entry(self.config.data_path(), &k);
+        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path());
+        //self.cached_docs.remove(&k).unwrap();
+        return ret
     }
 
     pub fn modify(&mut self, key: &str, new_entry: T) -> Result<(), Errors> {
@@ -153,7 +146,6 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
             let path = generate_default_config_structure();
 
             let config = Config::new_from_path(&path);
-            let main_path = String::from(path.parent().unwrap().to_str().unwrap());
 
             DirBuilder::new()
                 .recursive(true)
@@ -161,22 +153,18 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
                 .unwrap();
 
             return Ok(Collection {
-                main_path,
                 config,
-                //mapped_keys: HashMap::new(),
                 cached_docs: HashMap::new(),
+                storage_engine: Box::new(LocalFsStorage)
             })
         } else {
             let path = Path::new("db/keratin.toml");
             let config = Config::new_from_path(&path);
-            let main_path = String::from(path.parent().unwrap().to_str().unwrap());
-
        
             return Ok(Collection {
-                main_path,
                 config,
-                //mapped_keys: HashMap::new(),
                 cached_docs: HashMap::new(),
+                storage_engine: Box::new(LocalFsStorage)
             })
             
         }
@@ -210,7 +198,6 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
         };
 
         let config = Config::new_from_path(&path);
-        let main_path = String::from(path.parent().unwrap().to_str().unwrap());
 
         DirBuilder::new()
             .recursive(true)
@@ -218,50 +205,9 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
             .unwrap();
 
         Collection {
-            main_path,
             config,
-            //mapped_keys: HashMap::new(),
             cached_docs: HashMap::new(),
-        }
-    }
-
-    // TODO: Error handle this
-    fn _remove_entry(&mut self, given_key: &str) -> Result<(), Errors>{
-        for entry in fs::read_dir(self.config.data_path()).unwrap() {
-            let fp = entry.unwrap().path();
-            let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
-
-            if key == given_key {
-                fs::remove_file(fp).unwrap();
-                self.cached_docs.remove(given_key);
-
-                return Ok(())
-            }
-        }
-        Err(Errors::EntryNotFound)
-    }
-
-    // TODO: Error handle this
-    pub fn cache_entries(&mut self) {
-        for entry in fs::read_dir(self.config.data_path()).unwrap() {
-            let fp = entry.unwrap().path();
-            let mut f = File::open(fp.clone()).unwrap();
-
-            let key = Path::new(&fp).file_stem().unwrap().to_str().unwrap().to_string();
-
-            let doc = Document::from_reader(&mut f).expect("Could Not Decode");
-            
-            let upd = doc.get("data").unwrap().clone(); 
-            let upd: T = from_bson(upd).unwrap();
-
-
-            let e = Entry {
-                key: key.clone(),
-                content: upd
-            };
-
-
-            self.cached_docs.insert(key, e);
+            storage_engine: Box::new(LocalFsStorage)
         }
     }
 }

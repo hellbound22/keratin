@@ -8,6 +8,8 @@ In the future you'll be able to choose how to structure Keratin: how you'll inte
 
 WIP!!! Probably don't use in production
 
+Run tests with ```cargo test -- --test-threads 1```
+
 ### Exemple
 ```rust
 use keratin::*;
