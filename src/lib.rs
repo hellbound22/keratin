@@ -47,15 +47,15 @@ impl<T> Entry<T> {
 /// Represents a collection of documents.
 ///
 /// It is the main API for data managment for Keratin.
-pub struct Collection<T> {
+pub struct Collection<'a, T> {
     //main_path: String,
     config: Config,
     cached_docs: HashMap<String, Entry<T>>, // Pair (key, entry)
-    storage_engine: Box<dyn StorageEngine<T>>
+    storage_engine: &'a (dyn StorageEngine<T>)
 
 }
 
-impl<T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
+impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
     fn _gen_key(&self, pk: &str) -> String {
         let digest = md5::compute(pk);
 
@@ -140,7 +140,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
     /// This fuction uses the enviroment variable ```CARGO_MANIFEST_DIR```, so this will only work
     /// when running your project using ```cargo```, else it will panic.
     /// If you're using planning in using Keratin in production use ```configure()``` instead
-    pub fn new(self, truncate: bool) -> Result<Collection<T>, Errors> {
+    pub fn new(self, truncate: bool) -> Result<Collection<'a, T>, Errors> {
         // TODO: Actually remove all files on db/data
         if truncate {
             let path = generate_default_config_structure();
@@ -155,7 +155,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
             return Ok(Collection {
                 config,
                 cached_docs: HashMap::new(),
-                storage_engine: Box::new(LocalFsStorage)
+                storage_engine: &LocalFsStorage
             })
         } else {
             let path = Path::new("db/keratin.toml");
@@ -164,7 +164,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
             return Ok(Collection {
                 config,
                 cached_docs: HashMap::new(),
-                storage_engine: Box::new(LocalFsStorage)
+                storage_engine: &LocalFsStorage
             })
             
         }
@@ -189,7 +189,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
     /// This returns an error if the config file is not found OR if the folder doesn't have the
     /// right permitions
     // TODO: Error handle this
-    pub fn configure(path: Option<&str>) -> Collection<T> {
+    pub fn configure(path: Option<&str>, se: &'a (dyn StorageEngine<T>)) -> Collection<'a, T> {
         let path = match path {
             Some(x) => PathBuf::from(x),
             None => {
@@ -207,7 +207,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Collection<T> {
         Collection {
             config,
             cached_docs: HashMap::new(),
-            storage_engine: Box::new(LocalFsStorage)
+            storage_engine: se
         }
     }
 }

@@ -6,19 +6,22 @@ const PATH: &str  = "db/keratin.toml";
 #[test]
 #[should_panic]
 fn failed_insert() {
-    let mut coll: Collection<String> = Collection::configure(Some(PATH));
+    let se = keratin::storage::LocalFsStorage;
+    let mut coll: Collection<String> = Collection::configure(Some(PATH), &se);
 
     coll.insert("key", "teste".to_string()).unwrap();
 }
 
 #[test]
 fn test_fast_setup() {
-    let _coll: Collection<String> = Collection::configure(None);
+    let se = keratin::storage::LocalFsStorage;
+    let _coll: Collection<String> = Collection::configure(None, &se);
 }
 
 #[test]
 fn modify() {
-    let mut coll: Collection<String> = Collection::configure(Some(PATH));
+    let se = keratin::storage::LocalFsStorage;
+    let mut coll: Collection<String> = Collection::configure(Some(PATH), &se);
 
     match coll.delete("modifytest") {
         Ok(_) => {},
@@ -35,7 +38,8 @@ fn modify() {
 
 #[test]
 fn random_insert_and_delete() {
-    let mut coll: Collection<String> = Collection::configure(None);
+    let se = keratin::storage::LocalFsStorage;
+    let mut coll: Collection<String> = Collection::configure(None, &se);
 
     let key = "random_key";
 
