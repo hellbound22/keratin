@@ -1,19 +1,18 @@
 use rand::prelude::Rng;
 use keratin::*;
 
-const PATH: &str  = "db/keratin.toml";
-
 #[test]
-#[should_panic]
 fn failed_insert() {
     let se = keratin::storage::LocalFsStorage;
     let mut coll: Collection<String> = Collection::configure(None, &se);
 
+    coll.truncate();
+
     // Until a truncate option is made, the second will panic in the first run and the first will
     // panic in the second run
     // once truncate is made, only the second one should fail
-    coll.insert("key", "teste".to_string()).unwrap();
-    coll.insert("key", "testeagain".to_string()).unwrap();
+    assert!(coll.insert("key", "teste".to_string()).is_ok());
+    assert!(coll.insert("key", "testeagain".to_string()).is_err());
 }
 
 #[test]
@@ -26,6 +25,8 @@ fn test_fast_setup() {
 fn modify() {
     let se = keratin::storage::LocalFsStorage;
     let mut coll: Collection<String> = Collection::configure(None, &se);
+
+    coll.truncate();
 
     match coll.delete("modifytest") {
         Ok(_) => {},
@@ -44,6 +45,8 @@ fn modify() {
 fn random_insert_and_delete() {
     let se = keratin::storage::LocalFsStorage;
     let mut coll: Collection<String> = Collection::configure(None, &se);
+
+    coll.truncate();
 
     let key = "random_key";
 

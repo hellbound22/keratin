@@ -15,6 +15,8 @@ use crate::Entry;
 pub trait StorageEngine<T> {
     fn cache_entries(&self, data_path: &str) -> HashMap<String, Entry<T>>;
 
+    fn truncate_all(&self, data_path: &str);
+
     fn remove_entry(&self, data_path: &str, given_key: &str) -> Result<(), Errors>;
 
     fn write_record(&self, data_path: &str, entry: T, key: &str);
@@ -24,6 +26,12 @@ pub trait StorageEngine<T> {
 pub struct LocalFsStorage;
 
 impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStorage {
+    fn truncate_all(&self, data_path: &str) {
+        for entry in fs::read_dir(data_path).unwrap() {
+            fs::remove_file(entry.unwrap().path()).unwrap();
+        }
+    }
+
     fn cache_entries(&self, data_path: &str) -> HashMap<String, Entry<T>> {
         let mut hm = HashMap::new();
         for entry in fs::read_dir(data_path).unwrap() {

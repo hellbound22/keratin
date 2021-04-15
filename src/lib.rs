@@ -74,6 +74,10 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
         self.cached_docs.get(pk)
     }
 
+    pub fn truncate(&mut self) {
+        self.storage_engine.truncate_all(self.config.data_path());
+    }
+
     /// Insert an entry into the database given an ```Entry```
     ///
     /// # Note
