@@ -15,8 +15,11 @@ Run tests with ```cargo test -- --test-threads 1```
 use keratin::*;
 
 fn main() {
+	// Choose your method of storage (Anything that implements the 'StorageEngine' trait should work)
+    let se = keratin::storage::LocalFsStorage;
+
     // Create the collection (using None as the parameter defaults to a directory inside the project)
-    let mut coll: Collection<String> = Collection::configure(None);
+    let mut coll: Collection<String> = Collection::configure(None, &se);
 
     // Generate your data
     let mut rng = rand::thread_rng();
@@ -42,10 +45,23 @@ fn main() {
 
 ```
 
-#### TODO:
-- [ ] Modularize the library
+#### Avalible engines
 
-#### Default project directory Layout
+- Storage
+	- LocalFsStorage
+		- Stores records in the local file system as BSON files
+
+#### TODO:
+- [ ] Implement the engines
+	- [x] StorageEngine
+	- [ ] CacheEngine (caches records and helps the queries)
+	- [ ] QueryEngine (query the records)
+	- [ ] NetworkEngine (access other instances of keratin via the nerwork)
+	- [ ] ConfigurationEngine (configure keratin some other way?)
+	- [ ] AuthenticationEngine (Access and control keratin instances via credentials)
+- [ ] Make tables work
+
+#### Default project directory Layout using the defaut configuration
 ```
 project folder ---src/
 				|

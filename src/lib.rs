@@ -126,50 +126,6 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
         }
 
     }
-    /// A function to create a new Keratin db from scratch for a fast setup.
-    ///
-    /// The config file keratin.toml is created with the default options. If it already exists, the
-    /// config file.
-    ///
-    /// # Arguments
-    /// Truncate: if it is TRUE, this function wipes every document in ```db/data/``` along with
-    /// truncating the mapped keys file.
-    ///
-    /// # Panics
-    ///
-    /// This fuction uses the enviroment variable ```CARGO_MANIFEST_DIR```, so this will only work
-    /// when running your project using ```cargo```, else it will panic.
-    /// If you're using planning in using Keratin in production use ```configure()``` instead
-    pub fn new(self, truncate: bool) -> Result<Collection<'a, T>, Errors> {
-        // TODO: Actually remove all files on db/data
-        if truncate {
-            let path = generate_default_config_structure();
-
-            let config = Config::new_from_path(&path);
-
-            DirBuilder::new()
-                .recursive(true)
-                .create(config.data_path())
-                .unwrap();
-
-            return Ok(Collection {
-                config,
-                cached_docs: HashMap::new(),
-                storage_engine: &LocalFsStorage
-            })
-        } else {
-            let path = Path::new("db/keratin.toml");
-            let config = Config::new_from_path(&path);
-       
-            return Ok(Collection {
-                config,
-                cached_docs: HashMap::new(),
-                storage_engine: &LocalFsStorage
-            })
-            
-        }
-        //Err(Errors::DbConfigurationError)
-    }
 
     /// A function to initialize the collection using the path of a configuration file
     ///
@@ -178,11 +134,9 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
     /// * `path` - An Option with a Path. If this is None, Keratin will use the default config file
     /// path (eg. ```db/keratin.toml```)
     ///
-    /// # Attention
-    ///
-    /// USE ONLY ABSOLUTE PATHS!!!
-    ///
-    /// Use of the ```None``` Option is unstable
+    /// * `se` - The `Storage Engine` of the database. Right now only `LocalFsStorage` is
+    /// implemented into the crate, but in theory anything that implements the `StorageEngine`
+    /// trait could be passed as the parameter. 
     ///
     /// # Errors
     ///
