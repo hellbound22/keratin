@@ -7,9 +7,13 @@ const PATH: &str  = "db/keratin.toml";
 #[should_panic]
 fn failed_insert() {
     let se = keratin::storage::LocalFsStorage;
-    let mut coll: Collection<String> = Collection::configure(Some(PATH), &se);
+    let mut coll: Collection<String> = Collection::configure(None, &se);
 
+    // Until a truncate option is made, the second will panic in the first run and the first will
+    // panic in the second run
+    // once truncate is made, only the second one should fail
     coll.insert("key", "teste".to_string()).unwrap();
+    coll.insert("key", "testeagain".to_string()).unwrap();
 }
 
 #[test]
@@ -21,7 +25,7 @@ fn test_fast_setup() {
 #[test]
 fn modify() {
     let se = keratin::storage::LocalFsStorage;
-    let mut coll: Collection<String> = Collection::configure(Some(PATH), &se);
+    let mut coll: Collection<String> = Collection::configure(None, &se);
 
     match coll.delete("modifytest") {
         Ok(_) => {},
