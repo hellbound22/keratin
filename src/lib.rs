@@ -92,7 +92,6 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
             None => {
                 // Write the entry to a document and save it
                 self.storage_engine.write_record(self.config.data_path(), entry, &k);
-                self.cached_docs = self.storage_engine.cache_entries(self.config.data_path());
                 Ok(())
             }
         }
@@ -111,8 +110,6 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
         let k = self._gen_key(query);
         
         let ret = self.storage_engine.remove_entry(self.config.data_path(), &k);
-        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path());
-        //self.cached_docs.remove(&k).unwrap();
         return ret
     }
 
