@@ -47,6 +47,7 @@ impl<T> Entry<T> {
 /// Represents a collection of documents.
 ///
 /// It is the main API for data managment for Keratin.
+#[derive(Clone)]
 pub struct Collection<'a, T> {
     //main_path: String,
     config: Config,
