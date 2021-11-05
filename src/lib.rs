@@ -165,8 +165,11 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
             storage_engine: se
         }
     }
-}
 
+    pub fn iter(&self) -> std::collections::hash_map::Iter<String, Entry<T>> {
+        self.cached_docs.iter()
+    }
+}
 
 fn generate_default_config_structure() -> PathBuf {
     DirBuilder::new()
