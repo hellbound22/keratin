@@ -169,6 +169,11 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
     pub fn iter(&self) -> std::collections::hash_map::Iter<String, Entry<T>> {
         self.cached_docs.iter()
     }
+
+
+    pub fn iter_mut(&mut self) -> std::collections::hash_map::IterMut<String, Entry<T>> {
+        self.cached_docs.iter_mut()
+    }
 }
 
 fn generate_default_config_structure() -> PathBuf {
