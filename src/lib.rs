@@ -71,7 +71,7 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
     }
 
     fn _find(&mut self, pk: &str) -> Option<&Entry<T>> {
-        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path());
+        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path(), &self.config.coll_prefix());
         self.cached_docs.get(pk)
     }
 
@@ -168,7 +168,7 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
     }
 
     pub fn iter_mut(&mut self) -> std::collections::hash_map::IterMut<String, Entry<T>> {
-        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path());
+        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path(), &self.config.coll_prefix());
         self.cached_docs.iter_mut()
     }
 }
