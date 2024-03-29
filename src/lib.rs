@@ -22,27 +22,6 @@ const DEFAULT_CONFIG: &'static str = r#"project = ".default."
                     data_path = ".default."
                     "#;
 
-/// Represents an Entry in the database.
-/// 
-/// Contains the key and the following content corresponding to that key.
-#[derive(Clone, Debug)]
-pub struct Entry<T> {
-    pub key: String,
-    pub content: T,
-}
-impl<T> Entry<T> {
-    //pub fn as_bytes(&self) -> &[u8] {
-    //    self.content.as_bytes()
-    //}
-
-    pub fn inner(&self) -> &T {
-        &self.content
-    }
-
-    pub fn _inner_mut(&mut self) -> &mut T {
-        &mut self.content
-    }
-}
 
 /// Represents a collection of documents.
 ///
@@ -51,7 +30,7 @@ impl<T> Entry<T> {
 pub struct Collection<'a, T> {
     //main_path: String,
     config: Config,
-    cached_docs: HashMap<String, Entry<T>>, // Pair (key, entry)
+    cached_docs: HashMap<String, T>, // Pair (key, entry)
     storage_engine: &'a (dyn StorageEngine<T>)
 
 }
@@ -65,7 +44,7 @@ impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
 
     /// Returns an entry of the database given the respective key, or ```None``` if the key
     /// corresponds to no known entries
-    pub fn get(&mut self, k: &str) -> Option<Entry<T>> {
+    pub fn get(&mut self, k: &str) -> Option<T> {
         let key = self._gen_key(k);
         let ret = self._find(&key);
 
@@ -76,20 +55,19 @@ impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
         ret
     }
 
-    fn _find(&mut self, pk: &str) -> Option<Entry<T>> {
+    fn _find(&mut self, pk: &str) -> Option<T> {
         // TODO: first try to find in cache, if not found, fallback to engine get()
         // self.cached_docs = self.storage_engine.cache_entries(self.config.data_path(), &self.config.coll_prefix());
-        match self.storage_engine.find_in_storage(self.config.data_path(), pk) {
-            Some(e) => {
-                let e = Entry {
-                        key: pk.to_owned(),
-                        content: e
-                        };
-
-                    Some(e)
-                },
-            None => {
-                self.cached_docs.remove(pk)
+        if let Some(e) = self.cached_docs.remove(pk) {
+            Some(e)
+        } else {
+            match self.storage_engine.find_in_storage(self.config.data_path(), pk) {
+                Some(e) => {
+                        Some(e)
+                    },
+                None => {
+                    None
+                }
             }
         }
     }
@@ -187,7 +165,7 @@ impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
         }
     }
 
-    pub fn iter_mut(&mut self) -> std::collections::hash_map::IterMut<String, Entry<T>> {
+    pub fn iter_mut(&mut self) -> std::collections::hash_map::IterMut<String, T> {
         self.cached_docs = self.storage_engine.cache_entries(self.config.data_path(), &self.config.coll_prefix());
         self.cached_docs.iter_mut()
     }

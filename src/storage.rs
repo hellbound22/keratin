@@ -10,10 +10,9 @@ use serde::ser::Serialize;
 use serde::de::Deserialize;
 
 use crate::errors::*;
-use crate::Entry;
 
 pub trait StorageEngine<T> {
-    fn cache_entries(&self, data_path: &str, coll_prefix: &str) -> HashMap<String, Entry<T>>;
+    fn cache_entries(&self, data_path: &str, coll_prefix: &str) -> HashMap<String, T>;
 
     fn truncate_all(&self, data_path: &str);
 
@@ -47,7 +46,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStora
         }
     }
 
-    fn cache_entries(&self, data_path: &str, coll_prefix: &str) -> HashMap<String, Entry<T>> {
+    fn cache_entries(&self, data_path: &str, coll_prefix: &str) -> HashMap<String, T> {
         let mut hm = HashMap::new();
         for entry in fs::read_dir(data_path).unwrap() {
             let fp = entry.unwrap().path();
@@ -61,13 +60,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStora
             let upd: T = from_bson(upd).unwrap();
 
 
-            let e = Entry {
-                key: key.clone(),
-                content: upd
-            };
-
-
-           hm.insert(key, e);
+           hm.insert(key, upd);
         }
     
         return hm

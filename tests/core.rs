@@ -35,10 +35,10 @@ fn modify() {
     
 
     coll.insert("modifytest", "ass".to_string()).unwrap();
-    assert_eq!(coll.get("modifytest").unwrap().inner(), "ass");
+    assert_eq!(coll.get("modifytest").unwrap(), "ass");
 
     coll.modify("modifytest", "boobs".to_string()).unwrap();
-    assert_eq!(coll.get("modifytest").unwrap().inner(), "boobs");
+    assert_eq!(coll.get("modifytest").unwrap(), "boobs");
 }
 
 #[test]
@@ -55,6 +55,6 @@ fn random_insert_and_delete() {
     let result = coll.insert(key, nmr.clone());
 
     assert!(result.is_ok());
-    assert_eq!(coll.get(key).unwrap().inner(), &nmr);
+    assert_eq!(coll.get(key).unwrap(), nmr);
     assert!(coll.delete(key).is_ok());
 }
