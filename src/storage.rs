@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use std::path::{Path};
 
 use bson::{Document};
-use bson::{to_bson, from_bson};
+use bson::{to_bson, from_document};
 
 use serde::ser::Serialize;
 use serde::de::Deserialize;
@@ -26,14 +26,14 @@ pub trait StorageEngine<T> {
 #[derive(Clone, Debug)]
 pub struct LocalFsStorage;
 
-impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStorage {
+impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStorage 
+    where Document: From<T> {
     fn find_in_storage(&self, data_path: &str, key: &str) -> Option<T> {
         match File::open(format!("{}/{}.bson", data_path, key)) {
             Ok(mut f) => {
                 let inter = Document::from_reader(&mut f).expect("Could Not Decode");
 
-                let e = inter.get("data").unwrap().clone();
-                let e = from_bson(e).unwrap();
+                let e = from_document(inter).unwrap();
                 Some(e)
             },
             Err(_) => { None }
@@ -56,8 +56,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStora
 
             let doc = Document::from_reader(&mut f).expect("Could Not Decode");
             
-            let upd = doc.get("data").unwrap().clone(); 
-            let upd: T = from_bson(upd).unwrap();
+            let upd: T = from_document(doc).unwrap();
 
 
            hm.insert(key, upd);
@@ -82,8 +81,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStora
     }
 
     fn write_record(&self, data_path: &str, entry: T, key: &str) {
-        let mut doc = Document::new();
-        doc.insert("data".to_owned(), to_bson(&entry).unwrap());
+        let doc = Document::from(entry);
 
         let mut s = Vec::new();
         doc.to_writer(&mut s).unwrap();
