@@ -20,12 +20,27 @@ pub trait StorageEngine<T> {
     fn remove_entry(&self, data_path: &str, given_key: &str) -> Result<(), Errors>;
 
     fn write_record(&self, data_path: &str, entry: T, key: &str);
+
+    fn find_in_storage(&self, data_path: &str, key: &str) -> Option<T>;
 }
 
 #[derive(Clone, Debug)]
 pub struct LocalFsStorage;
 
 impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStorage {
+    fn find_in_storage(&self, data_path: &str, key: &str) -> Option<T> {
+        match File::open(format!("{}/{}.bson", data_path, key)) {
+            Ok(mut f) => {
+                let inter = Document::from_reader(&mut f).expect("Could Not Decode");
+
+                let e = inter.get("data").unwrap().clone();
+                let e = from_bson(e).unwrap();
+                Some(e)
+            },
+            Err(_) => { None }
+        }
+    }
+
     fn truncate_all(&self, data_path: &str) {
         for entry in fs::read_dir(data_path).unwrap() {
             fs::remove_file(entry.unwrap().path()).unwrap();

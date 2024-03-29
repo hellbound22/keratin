@@ -56,7 +56,7 @@ pub struct Collection<'a, T> {
 
 }
 
-impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
+impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
     fn _gen_key(&self, pk: &str) -> String {
         let digest = md5::compute(pk);
 
@@ -65,14 +65,33 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
 
     /// Returns an entry of the database given the respective key, or ```None``` if the key
     /// corresponds to no known entries
-    pub fn get(&mut self, k: &str) -> Option<&Entry<T>> {
+    pub fn get(&mut self, k: &str) -> Option<Entry<T>> {
         let key = self._gen_key(k);
-        self._find(&key)
+        let ret = self._find(&key);
+
+        if let Some(e) = ret.clone() {
+            self.cached_docs.insert(key, e);
+        }
+
+        ret
     }
 
-    fn _find(&mut self, pk: &str) -> Option<&Entry<T>> {
-        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path(), &self.config.coll_prefix());
-        self.cached_docs.get(pk)
+    fn _find(&mut self, pk: &str) -> Option<Entry<T>> {
+        // TODO: first try to find in cache, if not found, fallback to engine get()
+        // self.cached_docs = self.storage_engine.cache_entries(self.config.data_path(), &self.config.coll_prefix());
+        match self.storage_engine.find_in_storage(self.config.data_path(), pk) {
+            Some(e) => {
+                let e = Entry {
+                        key: pk.to_owned(),
+                        content: e
+                        };
+
+                    Some(e)
+                },
+            None => {
+                self.cached_docs.remove(pk)
+            }
+        }
     }
 
     pub fn truncate(&mut self) {
@@ -87,7 +106,7 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
         // Generate primary key
         let k = self._gen_key(key);
 
-        // Check if entry with key already exists in cache
+        // Check if entry with key already exists 
         match self._find(&k) {
             Some(_) => Err(Errors::AlreadyExists),
             None => {
@@ -111,6 +130,7 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de>> Collection<'a, T> {
         let k = self._gen_key(query);
         
         let ret = self.storage_engine.remove_entry(self.config.data_path(), &k);
+        self.cached_docs.remove(&k);
         return ret
     }
 
