@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use std::path::{Path};
 
 use bson::{Document};
-use bson::{to_bson, from_document};
+use bson::{to_document, from_document};
 
 use serde::ser::Serialize;
 use serde::de::Deserialize;
@@ -27,7 +27,9 @@ pub trait StorageEngine<T> {
 pub struct LocalFsStorage;
 
 impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStorage 
-    where Document: From<T> {
+    where Document: From<T> 
+    {
+
     fn find_in_storage(&self, data_path: &str, key: &str) -> Option<T> {
         match File::open(format!("{}/{}.bson", data_path, key)) {
             Ok(mut f) => {
@@ -81,7 +83,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStora
     }
 
     fn write_record(&self, data_path: &str, entry: T, key: &str) {
-        let doc = Document::from(entry);
+        let doc = to_document(&entry).unwrap();
 
         let mut s = Vec::new();
         doc.to_writer(&mut s).unwrap();

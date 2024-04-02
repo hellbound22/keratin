@@ -7,6 +7,8 @@ use serde::ser::Serialize;
 use serde::de::Deserialize;
 use serde;
 
+use anyhow::Result;
+
 pub mod config;
 pub mod errors;
 pub mod storage;
@@ -104,22 +106,22 @@ impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
     ///
     /// # Return
     /// Returns an Error ```EntryNotFound``` if the key does not match any entry
-    pub fn delete(&mut self, query: &str) -> Result<(), Errors>{
+    pub fn delete(&mut self, query: &str) -> Result<()> {
         let k = self._gen_key(query);
         
-        let ret = self.storage_engine.remove_entry(self.config.data_path(), &k);
+        let ret = self.storage_engine.remove_entry(self.config.data_path(), &k)?;
         self.cached_docs.remove(&k);
-        return ret
+        Ok(ret)
     }
 
-    pub fn modify(&mut self, key: &str, new_entry: T) -> Result<(), Errors> {
+    pub fn modify(&mut self, key: &str, new_entry: T) -> Result<()> {
         let k = self._gen_key(key);
 
         match self._find(&k) {
-            None => Err(Errors::EntryNotFound),
+            None => Err(Errors::EntryNotFound.into()),
             Some(_) => {
-                self.delete(key).unwrap();
-                self.insert(key, new_entry).unwrap();
+                self.delete(key)?;
+                self.insert(key, new_entry)?;
                 
                 Ok(())
             }
@@ -143,26 +145,25 @@ impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
     /// This returns an error if the config file is not found OR if the folder doesn't have the
     /// right permitions
     // TODO: Error handle this
-    pub fn configure(path: Option<&str>, se: &'a (dyn StorageEngine<T>)) -> Collection<'a, T> {
+    pub fn configure(path: Option<&str>, se: &'a (dyn StorageEngine<T>)) -> Result<Collection<'a, T>> {
         let path = match path {
             Some(x) => PathBuf::from(x),
             None => {
-                generate_default_config_structure()
+                generate_default_config_structure()?
             }
         };
 
-        let config = Config::new_from_path(&path);
+        let config = Config::new_from_path(&path)?;
 
         DirBuilder::new()
             .recursive(true)
-            .create(config.data_path())
-            .unwrap();
+            .create(config.data_path())?;
 
-        Collection {
+        Ok(Collection {
             config,
             cached_docs: HashMap::new(),
             storage_engine: se
-        }
+        })
     }
 
     pub fn iter_mut(&mut self) -> std::collections::hash_map::IterMut<String, T> {
@@ -171,14 +172,13 @@ impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
     }
 }
 
-fn generate_default_config_structure() -> PathBuf {
+fn generate_default_config_structure() -> Result<PathBuf> {
     DirBuilder::new()
         .recursive(true)
-        .create("db")
-        .unwrap();
-    let mut f = File::create("db/keratin.toml").unwrap();
+        .create("db")?; 
+    let mut f = File::create("db/keratin.toml")?;
 
-    f.write_all(DEFAULT_CONFIG.as_bytes()).unwrap();
+    f.write_all(DEFAULT_CONFIG.as_bytes())?;
     
-    Path::new("db/keratin.toml").to_owned()
+    Ok(Path::new("db/keratin.toml").to_owned())
 }
