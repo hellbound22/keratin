@@ -18,11 +18,11 @@ use errors::*;
 use storage::*;
 
 const DEFAULT_CONFIG: &'static str = r#"project = ".default."
-                    [core]
-                    collection = ".default."
-                    primary_key = "id"
-                    data_path = ".default."
-                    "#;
+[core]
+collection = ".default."
+primary_key = "id"
+data_path = ".default."
+"#;
 
 
 /// Represents a collection of documents.

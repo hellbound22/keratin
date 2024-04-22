@@ -27,7 +27,7 @@ pub trait StorageEngine<T> {
 pub struct LocalFsStorage;
 
 impl<T: Serialize + for<'de> Deserialize<'de>> StorageEngine<T> for LocalFsStorage 
-    where Document: From<T> 
+    //where Document: From<T> 
     {
 
     fn find_in_storage(&self, data_path: &str, key: &str) -> Option<T> {
