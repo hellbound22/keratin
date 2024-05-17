@@ -21,16 +21,12 @@ fn main() {
     // Create the collection (using None as the parameter defaults to a directory inside the project)
     let mut coll: Collection<String> = Collection::configure(None, &se);
 
-    // Generate your data
-    let mut rng = rand::thread_rng();
-    let nmr = rng.gen_range(0, 100).to_string();
-
     // Insert the data into the collection
-    let result = coll.insert("random_key", nmr.clone());
+    let result = coll.insert("key_here", "data here".unwrap());
     assert!(result.is_ok());
     
     // Get the data from the collection
-    let retrieved_data = coll.get("random_key").unwrap().inner();
+    let retrieved_data = coll.get("key_here").unwrap().inner();
     assert_eq!(retrieved_data, &nmr);
     
     // Delete the entry
@@ -39,7 +35,7 @@ fn main() {
     // Modify the data entry
     coll.modify("random_key", "modifying this entry".to_string()).unwrap();
     
-    let retrieved_data = coll.get("random_key").unwrap().inner();
+    let retrieved_data = coll.get("random_key").unwrap();
     assert_eq!(retrieved_data, "modifying this entry");
 }
 
@@ -52,9 +48,10 @@ fn main() {
 		- Stores records in the local file system as BSON files
 
 #### TODO:
+- [ ] Metadata field
 - [ ] Implement the engines
 	- [x] StorageEngine
-	- [ ] CacheEngine (caches records and helps the queries)
+	- [x] CacheEngine (caches records and helps the queries)
 	- [ ] QueryEngine (query the records)
 	- [ ] NetworkEngine (access other instances of keratin via the nerwork)
 	- [ ] ConfigurationEngine (configure keratin some other way?)
