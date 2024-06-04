@@ -14,29 +14,30 @@ Run tests with ```cargo test -- --test-threads 1```
 ```rust
 use keratin::*;
 
-fn main() {
+fn main() -> Result<()> {
 	// Choose your method of storage (Anything that implements the 'StorageEngine' trait should work)
     let se = keratin::storage::LocalFsStorage;
 
     // Create the collection (using None as the parameter defaults to a directory inside the project)
-    let mut coll: Collection<String> = Collection::configure(None, &se);
+    let mut coll: Collection<String> = Collection::configure(None, &se)?;
+
 
     // Insert the data into the collection
-    let result = coll.insert("key_here", "data here".unwrap());
+    let result = coll.insert("key", "something".to_owned())?;
     assert!(result.is_ok());
     
     // Get the data from the collection
-    let retrieved_data = coll.get("key_here").unwrap().inner();
-    assert_eq!(retrieved_data, &nmr);
+    let retrieved_data = coll.get(key).unwrap();
+    assert_eq!(retrieved_data, "something");
     
     // Delete the entry
-    coll.delete(&key);
+    coll.delete(&key)?;
     
     // Modify the data entry
-    coll.modify("random_key", "modifying this entry".to_string()).unwrap();
+    coll.modify("key", "another something".to_owned())?;
     
-    let retrieved_data = coll.get("random_key").unwrap();
-    assert_eq!(retrieved_data, "modifying this entry");
+    let retrieved_data = coll.get("key").unwrap();
+    assert_eq!(retrieved_data, "another something");
 }
 
 ```
@@ -49,14 +50,16 @@ fn main() {
 
 #### TODO:
 - [ ] Metadata field
+    - Partially implemented
 - [ ] Implement the engines
 	- [x] StorageEngine
-	- [x] CacheEngine (caches records and helps the queries)
+	- [ ] CacheEngine (caches records and helps the queries)
+        - [x] partial Implement
 	- [ ] QueryEngine (query the records)
+        - Missing trait
 	- [ ] NetworkEngine (access other instances of keratin via the nerwork)
 	- [ ] ConfigurationEngine (configure keratin some other way?)
 	- [ ] AuthenticationEngine (Access and control keratin instances via credentials)
-- [ ] Make tables work
 
 #### Default project directory Layout using the defaut configuration
 ```
