@@ -10,6 +10,7 @@ use crate::Errors;
 
 const DEFAULT_KEYWORD: &str = ".default.";
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct Config {
     project: String,

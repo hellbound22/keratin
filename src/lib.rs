@@ -74,25 +74,24 @@ impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
         }
     }
 
-    pub fn truncate(&mut self) {
-        self.storage_engine.truncate_all(self.config.data_path());
+    pub fn truncate(&mut self) -> Result<()> {
+        self.storage_engine.truncate_all(self.config.data_path())
     }
 
     /// Insert an entry into the database given an ```Entry```
     ///
     /// # Note
     /// This does not cache the entry automaticaly 
-    pub fn insert(&mut self, key: &str, entry: T) -> Result<(), Errors> {
+    pub fn insert(&mut self, key: &str, entry: T) -> Result<()> {
         // Generate primary key
         let k = self._gen_key(key);
 
         // Check if entry with key already exists 
         match self._find(&k) {
-            Some(_) => Err(Errors::AlreadyExists),
+            Some(_) => Err(Errors::AlreadyExists.into()),
             None => {
                 // Write the entry to a document and save it
-                self.storage_engine.write_record(self.config.data_path(), entry, &k);
-                Ok(())
+                self.storage_engine.write_record(self.config.data_path(), entry, &k)
             }
         }
     }
@@ -166,9 +165,9 @@ impl<'a, T: Serialize + Clone + for<'de> Deserialize<'de>> Collection<'a, T> {
         })
     }
 
-    pub fn iter_mut(&mut self) -> std::collections::hash_map::IterMut<String, T> {
-        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path(), &self.config.coll_prefix());
-        self.cached_docs.iter_mut()
+    pub fn iter_mut(&mut self) -> Result<std::collections::hash_map::IterMut<String, T>> {
+        self.cached_docs = self.storage_engine.cache_entries(self.config.data_path(), &self.config.coll_prefix())?;
+        Ok(self.cached_docs.iter_mut())
     }
 }
 

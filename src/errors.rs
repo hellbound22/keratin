@@ -10,5 +10,7 @@ pub enum Errors {
     #[error("Could not write entry to FS")]
     DocumentWritingError,
     #[error("Could not finish DB configuration")]
-    DbConfigurationError
+    DbConfigurationError,
+    #[error("Error in the FS")]
+    FsError
 }
